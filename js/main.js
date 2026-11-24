@@ -1,15 +1,20 @@
 /* =========================================================
-   PARSBERG — Main Script
+   PARSBERG — Main Script (Modernized)
    ========================================================= */
 (function () {
     'use strict';
 
-    /* ---------- Header scroll state ---------- */
+    /* ---------- Scroll progress + header state + back to top ---------- */
     const header = document.getElementById('header');
     const backToTop = document.getElementById('backToTop');
+    const progressBar = document.getElementById('scrollProgress');
 
     function onScroll() {
         const y = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = docHeight > 0 ? (y / docHeight) * 100 : 0;
+
+        if (progressBar) progressBar.style.width = progress + '%';
         header.classList.toggle('scrolled', y > 40);
         if (backToTop) backToTop.classList.toggle('visible', y > 600);
     }
@@ -56,7 +61,7 @@
                     }
                 });
             },
-            { threshold: 0.12, rootMargin: '0px 0px -60px 0px' }
+            { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
         );
         revealEls.forEach((el) => revealObserver.observe(el));
     } else {
@@ -75,7 +80,6 @@
 
             function tick(now) {
                 const progress = Math.min((now - start) / duration, 1);
-                // ease-out cubic
                 const eased = 1 - Math.pow(1 - progress, 3);
                 el.textContent = Math.floor(eased * target);
                 if (progress < 1) requestAnimationFrame(tick);
@@ -144,10 +148,8 @@
                 const match = filter === 'all' || card.dataset.category === filter;
                 card.classList.toggle('hide', !match);
 
-                // Small entrance animation
                 if (match) {
                     card.style.animation = 'none';
-                    // force reflow
                     void card.offsetWidth;
                     card.style.animation = 'fadeInCard 0.4s ease';
                 }
@@ -185,9 +187,8 @@
                 return;
             }
 
-            // Placeholder — connect to your backend / Formspree / Netlify Forms here.
-            // Example:
-            // fetch('https://formspree.io/f/YOUR_ID', { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } })
+            // Placeholder — connect to your backend / Formspree / Netlify Forms.
+            // See README.md for instructions.
 
             setStatus('Sending your inquiry...', '');
             setTimeout(() => {
@@ -222,4 +223,51 @@
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && nav.classList.contains('open')) closeNav();
     });
+})();
+
+/* ---------- SVG draw-on-scroll (blueprint paths) ---------- */
+(function initSvgDraw() {
+    const drawTargets = document.querySelectorAll(
+        '.architecture-visual svg path, .architecture-visual svg line, .architecture-visual svg rect, .architecture-visual svg circle'
+    );
+
+    if (!drawTargets.length || !('IntersectionObserver' in window)) return;
+
+    // Prepare initial state
+    drawTargets.forEach((el) => {
+        if (el.tagName === 'path' || el.tagName === 'line') {
+            try {
+                const len = el.getTotalLength ? el.getTotalLength() : 200;
+                el.style.strokeDasharray = String(len);
+                el.style.strokeDashoffset = String(len);
+                el.style.transition = 'stroke-dashoffset 1.6s ease';
+            } catch (_) {}
+        } else {
+            el.style.opacity = '0';
+            el.style.transition = 'opacity 1.2s ease';
+        }
+    });
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                drawTargets.forEach((el, i) => {
+                    const delay = i * 30 + 'ms';
+                    setTimeout(() => {
+                        if (el.style.strokeDashoffset) {
+                            el.style.strokeDashoffset = '0';
+                        } else {
+                            el.style.opacity = '1';
+                        }
+                    }, parseInt(delay, 10));
+                });
+                observer.disconnect();
+            });
+        },
+        { threshold: 0.2 }
+    );
+
+    const archSection = document.querySelector('.architecture-visual');
+    if (archSection) observer.observe(archSection);
 })();
